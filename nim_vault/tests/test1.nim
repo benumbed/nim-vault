@@ -9,21 +9,21 @@ import os
 import strformat
 import unittest
 
-import nim_vault as vault
+import nim_vault/connection
 
 suite "Test nim-vault API":
 
     test "newConnection":
         var vault_url = "http://localhost:8200"
         # FIXME: This is a temp dev token, set this from the environment
-        var conn = vault.newConnection(vault_url)
+        var conn = newVaultConnection(vault_url)
 
         check conn.vault_url == fmt"{vault_url}/v1"
         check conn.vault_token == os.getEnv("VAULT_TOKEN")
 
 
     test "test login":
-        var conn = vault.newConnection("http://localhost:8200")
+        var conn = newVaultConnection("http://localhost:8200")
 
         var result = conn.login()
 
