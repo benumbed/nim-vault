@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.1.0"
+version       = "0.1.1"
 author        = "Benumbed"
 description   = "A Nim wrapper over the Hashicorp Vault API"
 license       = "BSD-3-Clause"
