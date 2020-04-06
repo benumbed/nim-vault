@@ -38,7 +38,7 @@ method approle_login*(this: VaultConnection, role_id: string, secret_id: string)
     let res = this.client.post(url=vault_path, body=call_body)
 
     var resp_json = res.body().parseJson()
-    if res.status != Http200:
+    if res.code != Http200:
         return(fmt"""Failed to use AppRole to login to {vault_path}: {resp_json["errors"]}""", true)
 
     if "auth" notin resp_json or "client_token" notin resp_json["auth"]:
@@ -68,9 +68,11 @@ method login*(this: VaultConnection): json.JsonNode {.base.} =
 proc newVaultConnection*(vault_url: string, vault_token = os.getEnv("VAULT_TOKEN", ""), api_version = "v1"): VaultConnection =
     ## Creates a new Vault connection object (does not actually connect, that is done lazily)
     let clean_vault_url = vault_url.strip(leading=false, trailing=true, chars={'/'})
-    
+
     new result
     result.client = newHttpClient("nim_vault")
-    result.client.headers.add("X-Vault_Token", vault_token)
+    result.client.headers.add("Authorization", fmt"Bearer {vault_token}")
+    result.client.headers.add("Accept", "application/json")
+    result.client.headers.add("Content-Type", "application/json")
     result.vault_url = fmt"{clean_vault_url}/{api_version}"
     result.vault_token = vault_token

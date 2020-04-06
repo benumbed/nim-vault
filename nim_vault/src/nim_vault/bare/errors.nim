@@ -5,4 +5,6 @@
 ##
 import system
 
-type VaultError* = object of system.Exception
+type VaultError* = object of system.CatchableError
+
+type VaultNotFoundError* = object of VaultError
