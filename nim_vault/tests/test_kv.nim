@@ -33,7 +33,6 @@ suite "Bare Wrapper for kv/kv2":
     
 
     test "kvRead returns config for kv2 mountpoint":
-        let vc = newVaultConnection(VAULT_ADDR)
         let kv_path = "/unit-tests/kvRead"
         discard vc.kvWrite(%*{"secret_value": "secret"}, kv_path=kv_path)
 
@@ -66,3 +65,15 @@ suite "Bare Wrapper for kv/kv2":
         check:
             "created_time" in res.response
             res.response["destroyed"].getBool == false
+
+    test "kvWrite deletes the provided secret":
+        let kv_path = "/unit-tests/kvDelete"
+        discard vc.kvWrite(%*{"secret_value": "secret"}, kv_path=kv_path)
+        let resp = vc.kvRead(kv_path=kv_path).response
+        check:
+            "secret_value" in resp
+
+        discard vc.kvDelete(kv_path=kv_path)
+
+        expect VaultNotFoundError:
+            discard vc.kvRead(kv_path=kv_path)
