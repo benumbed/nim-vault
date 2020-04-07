@@ -1,6 +1,6 @@
 ## 
 ## Provides a very basic wrapper over the top of the `kv` and `kv2` APIs.  kv2 currently has highest priority, as it
-## is the most popular.
+## is the most popular.  kv2-only procs are prefixed with `kv2` instead of just `kv`.
 ##
 ## (C) 2020 Benumbed (Nick Whalen) <benumbed@projectneutron.com> -- All Rights Reserved
 ##
@@ -25,7 +25,7 @@ proc expectHttp204(res: Response): JsonWithErrorIndicator =
     return (JsonNode(nil), false)
 
 
-proc expectHttp200(res: Response, url: string, isKv2: bool, isWrite: bool): JsonWithErrorIndicator =
+proc expectHttp200(res: Response, url: string, isKv2: bool, hasSingleData = false): JsonWithErrorIndicator =
     ## Collects all the common HTTP 200 code among the kv methods
     if res.code == Http404:
         raise newException(VaultNotFoundError, fmt"The path '{url}' was not found")
@@ -35,31 +35,31 @@ proc expectHttp200(res: Response, url: string, isKv2: bool, isWrite: bool): Json
     if res.code != Http200 or not ("data" in resp_json):
         return (resp_json, true)
     else:
-        return ((if isKv2 and not isWrite: resp_json["data"]["data"] else: resp_json["data"]), false)
+        return ((if isKv2 and not hasSingleData: resp_json["data"]["data"] else: resp_json["data"]), false)
 
 
-proc kvPathGenerator(mountpoint="/secret", kv_path="/", isKv2=true): string =
+proc kvPathGenerator(mountpoint="/secret", kvPath="/", isKv2=true): string =
     ## Generates the correct path depending on whether kv2 is in use or not
     let kv2data = if isKv2: "data" else: ""
-    let pathLeadingSlash = if kv_path.startsWith("/"): "" else: "/"
-    result = fmt"/{mountpoint}/{kv2data}{pathLeadingSlash}{kv_path}"    
+    let pathLeadingSlash = if kvPath.startsWith("/"): "" else: "/"
+    result = fmt"/{mountpoint}/{kv2data}{pathLeadingSlash}{kvPath}"    
 
 
 #-----------------------------------------------------------------------------------------------------------------------
 # API Methods
 #-----------------------------------------------------------------------------------------------------------------------
 
-proc kvSetConfig*(this: VaultConnection, mountpoint="/secret", max_versions=0, cas_required=false, 
-                  delete_version_after="0s"): JsonWithErrorIndicator =
+proc kvSetConfig*(this: VaultConnection, mountpoint="/secret", maxVersions=0, casRequired=false, 
+                  deleteVersionAfter="0s"): JsonWithErrorIndicator =
     ## Wrapper method for `/secret/config` where 'secret' is the mountpoint of a kv2 engine. `mountpoint` is the root
     ## of the kv or kv2 engine.
-    let call_body = $(%*{
-        "max_versions": max_versions,
-        "cas_required": cas_required,
-        "delete_version_after": delete_version_after
+    let callBody = $(%*{
+        "max_versions": maxVersions,
+        "cas_required": casRequired,
+        "delete_version_after": deleteVersionAfter
     })
     
-    let res = this.client.post(url = this.api_path(fmt"{mountpoint}/config"), body = call_body)
+    let res = this.client.post(url = this.api_path(fmt"{mountpoint}/config"), body = callBody)
 
     return expectHttp204(res)
 
@@ -70,31 +70,91 @@ proc kvGetConfig*(this: VaultConnection, mountpoint="/secret"): JsonWithErrorInd
     let url = this.api_path(fmt"{mountpoint}/config")
     let res = this.client.get(url = url)
 
-    return expectHttp200(res, url, isKv2=false, isWrite=false)
+    return expectHttp200(res, url, isKv2=false)
 
 
 
-proc kvRead*(this: VaultConnection, mountpoint="/secret", kv_path="/", isKv2=true): JsonWithErrorIndicator =
-    ## Reads the secret at the provided `kv_path` on the provided `mountpoint`.  If `isKv2` is set to false, the 
+proc kvRead*(this: VaultConnection, mountpoint="/secret", kvPath="/", isKv2=true, version=0): JsonWithErrorIndicator =
+    ## Reads the secret at the provided `kvPath` on the provided `mountpoint`.  If `isKv2` is set to false, the 
     ## procedure will assume it is reading from an original kv secrets engine.
-    let url = this.api_path(kvPathGenerator(mountpoint, kv_path, isKv2))
+    let url = this.api_path(fmt"{kvPathGenerator(mountpoint, kvPath, isKv2)}?version={version}")
     let res = this.client.get(url = url)
 
-    return expectHttp200(res, url, isKv2, isWrite=false)
+    return expectHttp200(res, url, isKv2)
 
 
-proc kvWrite*(this: VaultConnection, data: JsonNode, mountpoint="/secret", kv_path="/", isKv2=true): JsonWithErrorIndicator =
-    ## Writes to the secret at the provided `kv_path` on the provided `mountpoint`.  If `isKv2` is set to false, the 
+proc kvWrite*(this: VaultConnection, data: JsonNode, mountpoint="/secret", kvPath="/", isKv2=true): JsonWithErrorIndicator =
+    ## Writes to the secret at the provided `kvPath` on the provided `mountpoint`.  If `isKv2` is set to false, the 
     ## procedure will assume it is writing to an original kv secrets engine.
-    let url = this.api_path(kvPathGenerator(mountpoint, kv_path, isKv2))
+    let url = this.api_path(kvPathGenerator(mountpoint, kvPath, isKv2))
     let res = this.client.post(url = url, body = $(%*{"data": data}))
 
-    return expectHttp200(res, url, isKv2, isWrite=true)
+    return expectHttp200(res, url, isKv2, hasSingleData=true)
 
 
-proc kvDelete*(this: VaultConnection, mountpoint="/secret", kv_path="/", isKv2=true): JsonWithErrorIndicator =
+proc kvDelete*(this: VaultConnection, mountpoint="/secret", kvPath="/", isKv2=true): JsonWithErrorIndicator =
     ## Wraps the delete call for the kv/kv2 APIs
-    let url = this.api_path(kvPathGenerator(mountpoint, kv_path, isKv2))
+    let url = this.api_path(kvPathGenerator(mountpoint, kvPath, isKv2))
     let res = this.client.delete(url = url)
+
+    return expectHttp204(res)
+
+
+proc kv2DeleteVersions*(this: VaultConnection, mountpoint="/secret", kvPath="/", versions: openArray[int]): JsonWithErrorIndicator =
+    ## (kv2 only)  Will delete the provided versions
+    let path = kvPath.strip(trailing=false, chars = {'/'})
+    let callBody = $(%*{
+        "versions": %(versions),
+    })
+    let res = this.client.post(url = this.api_path(fmt"{mountpoint}/delete/{path}"), body=callBody)
+
+    return expectHttp204(res)
+
+
+proc kv2Undelete*(this: VaultConnection, mountpoint="/secret", kvPath="/", versions: openArray[int]): JsonWithErrorIndicator =
+    ## (kv2 only) Undeletes previously deleted versions (only works if the version has not been _destroyed_)
+    let path = kvPath.strip(trailing=false, chars = {'/'})
+    let callBody = $(%*{
+        "versions": %(versions),
+    })
+    let res = this.client.post(url = this.api_path(fmt"{mountpoint}/undelete/{path}"), body=callBody)
+
+    return expectHttp204(res)
+
+
+proc kv2Destroy*(this: VaultConnection, mountpoint="/secret", kvPath="/", versions: openArray[int]): JsonWithErrorIndicator =
+    ## (kv2 only) Permanently destroys the specified `versions` at the given `kvPath`
+    let path = kvPath.strip(trailing=false, chars = {'/'})
+    let callBody = $(%*{
+        "versions": %(versions),
+    })
+    let res = this.client.post(url = this.api_path(fmt"{mountpoint}/destroy/{path}"), body=callBody)
+
+    return expectHttp204(res)
+
+proc kvList*(this: VaultConnection, mountpoint="/secret", kvPath="/", isKv2=true): JsonWithErrorIndicator =
+    ## Lists the secrets at a location
+    let path = kvPath.strip(trailing=false, chars = {'/'})
+    let mdSelect = if isKv2: "metadata/" else: ""
+    let url = this.api_path(fmt("{mountpoint}/{mdSelect}{path}"))
+    # NOTE: Nim's httpclient doesn't directly support 'LIST' so we use the raw `request` proc here
+    let res = this.client.request(url = url, httpMethod = "LIST")
+
+    return expectHttp200(res, url, isKv2, hasSingleData=true)
+
+
+proc kv2ReadMetadata*(this: VaultConnection, mountpoint="/secret", kvPath="/"): JsonWithErrorIndicator =
+    ## Lists the secrets at a location
+    let path = kvPath.strip(trailing=false, chars = {'/'})
+    let url = this.api_path(fmt("{mountpoint}/metadata/{path}"))
+    let res = this.client.get(url = url)
+
+    return expectHttp200(res, url, isKv2=true, hasSingleData=true)
+
+
+proc kv2DeleteAll*(this: VaultConnection, mountpoint="/secret", kvPath="/"): JsonWithErrorIndicator =
+    ## Deletes all versions of a kv2 secret
+    let path = kvPath.strip(trailing=false, chars = {'/'})
+    let res = this.client.delete(url = this.api_path(fmt("{mountpoint}/metadata/{path}")))
 
     return expectHttp204(res)

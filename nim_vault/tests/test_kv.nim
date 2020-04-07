@@ -33,10 +33,10 @@ suite "Bare Wrapper for kv/kv2":
     
 
     test "kvRead returns config for kv2 mountpoint":
-        let kv_path = "/unit-tests/kvRead"
-        discard vc.kvWrite(%*{"secret_value": "secret"}, kv_path=kv_path)
+        let kvPath = "/unit-tests/kvRead"
+        discard vc.kvWrite(%*{"secret_value": "secret"}, kvPath=kvPath)
 
-        let cfg = vc.kvRead(kv_path=kv_path)
+        let cfg = vc.kvRead(kvPath=kvPath)
 
         check:
             cfg.error != true
@@ -48,32 +48,146 @@ suite "Bare Wrapper for kv/kv2":
         expect VaultNotFoundError:
             discard vc.kvRead()
             discard vc.kvRead(mountpoint="")
-            discard vc.kvRead(kv_path="")
+            discard vc.kvRead(kvPath="")
 
 
     test "kvWrite throws for non-existent paths":
         expect VaultNotFoundError:
-            discard vc.kvWrite(JsonNode(), mountpoint="banana", kv_path="foo")
+            discard vc.kvWrite(JsonNode(), mountpoint="banana", kvPath="foo")
 
 
     test "kvWrite can write to a path":
         let data = %*{
             "secret_value": "secret"
         }
-        let res =  vc.kvWrite(data, kv_path="/unit-tests")
+        let res =  vc.kvWrite(data, kvPath="/unit-tests")
 
         check:
             "created_time" in res.response
             res.response["destroyed"].getBool == false
 
-    test "kvWrite deletes the provided secret":
-        let kv_path = "/unit-tests/kvDelete"
-        discard vc.kvWrite(%*{"secret_value": "secret"}, kv_path=kv_path)
-        let resp = vc.kvRead(kv_path=kv_path).response
+
+    test "kvDelete deletes the provided secret":
+        let kvPath = "/unit-tests/kvDelete"
+        discard vc.kvWrite(%*{"secret_value": "secret"}, kvPath=kvPath)
+        let resp = vc.kvRead(kvPath=kvPath).response
         check:
             "secret_value" in resp
 
-        discard vc.kvDelete(kv_path=kv_path)
+        discard vc.kvDelete(kvPath=kvPath)
 
         expect VaultNotFoundError:
-            discard vc.kvRead(kv_path=kv_path)
+            discard vc.kvRead(kvPath=kvPath)
+
+
+    test "kv2DeleteVersions only deletes the specified versions":
+        let kvPath = "/unit-tests/kv2DeleteVersions"
+        discard vc.kv2DeleteAll(kvPath=kvPath)  # Clear all versions from previous test
+        discard vc.kvWrite(%*{"secret_value": "secret1"}, kvPath=kvPath)
+        discard vc.kvWrite(%*{"secret_value": "secret2"}, kvPath=kvPath)
+        discard vc.kvWrite(%*{"secret_value": "secret3"}, kvPath=kvPath)
+
+        let res = vc.kv2DeleteVersions(kvPath=kvPath, versions=[1, 3])
+
+        check:
+            res.error == false
+            res.response == nil
+
+        expect VaultNotFoundError:
+            discard vc.kvRead(kvPath=kvPath, version=1)
+            discard vc.kvRead(kvPath=kvPath, version=3)
+
+        let readRes = vc.kvRead(kvPath=kvPath, version=2)
+        check:
+            "secret_value" in readRes.response
+            readRes.response["secret_value"].getStr == "secret2"
+            readRes.error == false
+
+
+    test "kv2Undelete only undeletes the specified versions":
+        let kvPath = "/unit-tests/kv2Undelete"
+        discard vc.kv2DeleteAll(kvPath=kvPath)  # Clear all versions from previous test
+        discard vc.kvWrite(%*{"secret_value": "secret1"}, kvPath=kvPath)
+        discard vc.kvWrite(%*{"secret_value": "secret2"}, kvPath=kvPath)
+        discard vc.kvWrite(%*{"secret_value": "secret3"}, kvPath=kvPath)
+
+        discard vc.kv2DeleteVersions(kvPath=kvPath, versions=[1, 3])
+
+        expect VaultNotFoundError:
+            discard vc.kvRead(kvPath=kvPath, version=1)
+            discard vc.kvRead(kvPath=kvPath, version=3)
+
+        let res = vc.kv2Undelete(kvPath=kvPath, versions=[1])
+        check:
+            res.response == nil
+            res.error == false
+
+        let readRes = vc.kvRead(kvPath=kvPath, version=1)
+        check:
+            "secret_value" in readRes.response
+            readRes.response["secret_value"].getStr == "secret1"
+            readRes.error == false
+
+
+    test "kv2Destroy permanently deletes secrets":
+        let kvPath = "/unit-tests/kv2Destroy"
+        discard vc.kv2DeleteAll(kvPath=kvPath)  # Clear all versions from previous test
+        discard vc.kvWrite(%*{"secret_value": "secret1"}, kvPath=kvPath)
+        discard vc.kvWrite(%*{"secret_value": "secret2"}, kvPath=kvPath)
+        discard vc.kvWrite(%*{"secret_value": "secret3"}, kvPath=kvPath)
+
+        discard vc.kv2Destroy(kvPath=kvPath, versions=[2, 3])
+
+        expect VaultNotFoundError:
+            discard vc.kvRead(kvPath=kvPath, version=2)
+            discard vc.kvRead(kvPath=kvPath, version=3)
+
+        discard vc.kv2Undelete(kvPath=kvPath, versions=[2])
+
+        expect VaultNotFoundError:
+            discard vc.kvRead(kvPath=kvPath, version=2)
+
+
+    test "kvList lists all secrets at a path":
+        let kvPath = "/unit-tests/kvList"
+        discard vc.kv2DeleteAll(kvPath=kvPath)  # Clear all versions from previous test
+        discard vc.kvWrite(%*{"secret_value": "secret1", "another_secret": "yep"}, kvPath=kvPath)
+
+        let res = vc.kvList(kvPath="/unit-tests")
+
+        check:
+            res.error == false
+            "keys" in res.response
+            res.response["keys"].contains(newJString("kvList"))
+
+
+    test "kv2ReadMetadata returns the metadata for a path":
+        let kvPath = "/unit-tests/kvReadMetadata"
+        discard vc.kv2DeleteAll(kvPath=kvPath)  # Clear all versions from previous test
+        discard vc.kvWrite(%*{"secret_value": "secret1"}, kvPath=kvPath)
+
+        let res = vc.kv2ReadMetadata(kvPath=kvPath)
+
+        check:
+            res.error == false
+            res.response["current_version"].getInt == 1
+            res.response["delete_version_after"].getStr == "0s"
+            res.response["max_versions"].getInt == 0
+            "versions" in res.response
+            "1" in res.response["versions"]
+
+
+    test "kv2DeleteAll will delete all versions of a secret":
+        let kvPath = "/unit-tests/kv2DeleteAll"
+        discard vc.kvWrite(%*{"secret_value": "secret"}, kvPath=kvPath)
+        discard vc.kvWrite(%*{"secret_value": "secret"}, kvPath=kvPath)
+        discard vc.kvWrite(%*{"secret_value": "secret"}, kvPath=kvPath)
+
+        let res = vc.kv2DeleteAll(kvPath=kvPath)
+
+        check:
+            res.error == false
+            res.response == nil
+
+        expect VaultNotFoundError:
+            discard vc.kvRead(kvPath=kvPath)
