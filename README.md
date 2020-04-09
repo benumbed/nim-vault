@@ -4,4 +4,4 @@ Light wrapper around the [HashiCorp](https://hashicorp.com/) [Vault](https://www
 **NOTE**: This library is a work in-progress, the supported endpoints are expanding regularly. Any Enterprise-level API calls will be provided as procs, but these procs will not be tested due to not having an Enterprise licensed server to test against.
 
 ## Documentation
-Currently you'll need to take a look at the modules in nim_vault/src/nim_vault/bare.  Generated docs from the source are coming *Real Soon Now* (TM).
+Currently you'll need to take a look at the modules in `nim_vault/src/nim_vault/bare`.  Generated docs from the source are coming *Real Soon Now* (TM).
