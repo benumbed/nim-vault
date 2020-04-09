@@ -152,6 +152,20 @@ proc kv2ReadMetadata*(this: VaultConnection, mountpoint="/secret", kvPath="/"): 
     return expectHttp200(res, url, isKv2=true, hasSingleData=true)
 
 
+proc kv2UpdateMetadata*(this: VaultConnection, mountpoint="/secret", kvPath="/", maxVersions=0, casRequired=false, 
+                        deleteVersionAfter="0s"): JsonWithErrorIndicator =
+    ## Updates the metadata for a secret
+    let callBody = $(%*{
+        "max_versions": maxVersions,
+        "cas_required": casRequired,
+        "delete_version_after": deleteVersionAfter
+    })
+    let path = kvPath.strip(trailing=false, chars = {'/'})
+    let res = this.client.post(url = this.api_path(fmt"{mountpoint}/metadata/{path}"), body = callBody)
+
+    return expectHttp204(res)
+
+
 proc kv2DeleteAll*(this: VaultConnection, mountpoint="/secret", kvPath="/"): JsonWithErrorIndicator =
     ## Deletes all versions of a kv2 secret
     let path = kvPath.strip(trailing=false, chars = {'/'})

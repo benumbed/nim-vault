@@ -176,6 +176,34 @@ suite "Bare Wrapper for kv/kv2":
             "versions" in res.response
             "1" in res.response["versions"]
 
+    test "kv2UpdateMetadata updates the metadata settings for a secret":
+        let kvPath = "/unit-tests/kvUpdateMetadata"
+        discard vc.kv2DeleteAll(kvPath=kvPath)  # Clear all versions from previous test
+        discard vc.kvWrite(%*{"secret_value": "secret1"}, kvPath=kvPath)
+
+        let res = vc.kv2ReadMetadata(kvPath=kvPath)
+
+        check:
+            res.error == false
+            res.response["current_version"].getInt == 1
+            res.response["delete_version_after"].getStr == "0s"
+            res.response["max_versions"].getInt == 0
+            "versions" in res.response
+            "1" in res.response["versions"]
+
+        discard vc.kv2UpdateMetadata(kvPath=kvPath, maxVersions=10, casRequired=true, deleteVersionAfter="1h")
+
+        let resAfter = vc.kv2ReadMetadata(kvPath=kvPath)
+
+        check:
+            resAfter.error == false
+            resAfter.response["current_version"].getInt == 1
+            resAfter.response["delete_version_after"].getStr == "1h0m0s"
+            resAfter.response["cas_required"].getBool == true
+            resAfter.response["max_versions"].getInt == 10
+            "versions" in res.response
+            "1" in res.response["versions"]
+
 
     test "kv2DeleteAll will delete all versions of a secret":
         let kvPath = "/unit-tests/kv2DeleteAll"
