@@ -9,7 +9,7 @@ import os
 import strformat
 import strutils
 
-import nim_vault/bare/errors
+import nim_vault/errors
 import nim_vault/structs
 
 type VaultConnectionError* = object of VaultError

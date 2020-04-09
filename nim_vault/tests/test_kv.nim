@@ -10,8 +10,8 @@ import json
 import os
 import unittest
 
+import nim_vault/errors
 import nim_vault/bare/connection
-import nim_vault/bare/errors
 import nim_vault/bare/secrets/kv
 
 let VAULT_ADDR =os.getEnv("VAULT_ADDR", "http://localhost:8200")

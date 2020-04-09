@@ -10,34 +10,12 @@ import strformat
 import strutils
 
 import ../connection
-import ../errors
 import ../../structs
-
+import ../../utils
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Helper Methods
 #-----------------------------------------------------------------------------------------------------------------------
-proc expectHttp204(res: Response): JsonWithErrorIndicator =
-    ## HTTP 204 common-case handler
-    if res.code != Http204:
-        return (res.body().parseJson(), true)
-    
-    return (JsonNode(nil), false)
-
-
-proc expectHttp200(res: Response, url: string, isKv2: bool, hasSingleData = false): JsonWithErrorIndicator =
-    ## Collects all the common HTTP 200 code among the kv methods
-    if res.code == Http404:
-        raise newException(VaultNotFoundError, fmt"The path '{url}' was not found")
-
-    let resp_json = res.body().parseJson()
-
-    if res.code != Http200 or not ("data" in resp_json):
-        return (resp_json, true)
-    else:
-        return ((if isKv2 and not hasSingleData: resp_json["data"]["data"] else: resp_json["data"]), false)
-
-
 proc kvPathGenerator(mountpoint="/secret", kvPath="/", isKv2=true): string =
     ## Generates the correct path depending on whether kv2 is in use or not
     let kv2data = if isKv2: "data" else: ""
