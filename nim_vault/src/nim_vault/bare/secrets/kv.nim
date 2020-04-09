@@ -9,9 +9,9 @@ import json
 import strformat
 import strutils
 
-import ./connection
-import ./errors
-import ../structs
+import ../connection
+import ../errors
+import ../../structs
 
 
 #-----------------------------------------------------------------------------------------------------------------------

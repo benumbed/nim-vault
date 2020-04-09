@@ -12,7 +12,7 @@ import unittest
 
 import nim_vault/bare/connection
 import nim_vault/bare/errors
-import nim_vault/bare/kv
+import nim_vault/bare/secrets/kv
 
 let VAULT_ADDR =os.getEnv("VAULT_ADDR", "http://localhost:8200")
 let vc = newVaultConnection(VAULT_ADDR)
