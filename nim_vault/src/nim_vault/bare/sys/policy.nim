@@ -21,7 +21,7 @@ proc policiesAclList*(vc: VaultConnection): JsonWithErrorIndicator =
     return expectHttp200(res, url, isKv2=false)
 
 proc policiesAclRead*(vc: VaultConnection, policyName: string): JsonWithErrorIndicator = 
-    ## Wraps the ACL policy listing endpoint
+    ## Wraps the ACL policy read endpoint
     ## https://www.vaultproject.io/api-docs/system/policies/#read-acl-policy
     let url = vc.api_path(fmt"/sys/policies/acl/{policyName}")
     let res = vc.client.get(url = url)

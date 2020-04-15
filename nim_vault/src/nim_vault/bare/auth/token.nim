@@ -1,5 +1,5 @@
 ## 
-## Wrapps the `token` API methods from Vault
+## Wraps the `token` API methods from Vault
 ##
 ## (C) 2020 Benumbed (Nick Whalen) <benumbed@projectneutron.com> -- All Rights Reserved
 ##
@@ -29,7 +29,6 @@ type TokenOptions* = object
 
 proc tokListAccessors*(vc: VaultConnection): JsonWithErrorIndicator =
     ## Wraps the token list accessor API method
-    echo vc.api_path("/auth/token/accessors")
     let res = vc.client.get(url = vc.api_path("/auth/token/accessors"))
 
     return expectHttp200(res, "/auth/token/accessors", isKv2=false)

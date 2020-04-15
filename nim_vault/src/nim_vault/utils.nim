@@ -11,6 +11,11 @@ import strutils
 import ./errors
 import ./structs
 
+proc list*(client: HttpClient | AsyncHttpClient, url: string,
+              httpMethod = HttpGet, body = "", headers: HttpHeaders = nil,
+              multipart: MultipartData = nil): Response = 
+    return client.request(url, httpMethod = "LIST", body=body, headers=headers, multipart=multipart)
+
 proc expectHttp204*(res: Response): JsonWithErrorIndicator =
     ## HTTP 204 common-case handler
     if res.code != Http204:
@@ -19,7 +24,7 @@ proc expectHttp204*(res: Response): JsonWithErrorIndicator =
     return (JsonNode(nil), false)
 
 
-proc expectHttp200*(res: Response, url: string, isKv2: bool, hasSingleData = false): JsonWithErrorIndicator =
+proc expectHttp200*(res: Response, url: string, isKv2: bool = false, hasSingleData = true, returnAll = false): JsonWithErrorIndicator =
     ## Collects all the common HTTP 200 code among the kv methods
     if res.code == Http404:
         raise newException(VaultNotFoundError, fmt"The path '{url}' was not found")
@@ -28,6 +33,8 @@ proc expectHttp200*(res: Response, url: string, isKv2: bool, hasSingleData = fal
 
     if res.code != Http200 or not ("data" in resp_json):
         return (resp_json, true)
+    elif returnAll:
+        return (resp_json, false)
     else:
         return ((if isKv2 and not hasSingleData: resp_json["data"]["data"] else: resp_json["data"]), false)
 

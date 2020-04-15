@@ -58,7 +58,7 @@ proc kvRead*(this: VaultConnection, mountpoint="/secret", kvPath="/", isKv2=true
     let url = this.api_path(fmt"{kvPathGenerator(mountpoint, kvPath, isKv2)}?version={version}")
     let res = this.client.get(url = url)
 
-    return expectHttp200(res, url, isKv2)
+    return expectHttp200(res, url, isKv2, hasSingleData = false)
 
 
 proc kvWrite*(this: VaultConnection, data: JsonNode, mountpoint="/secret", kvPath="/", isKv2=true): JsonWithErrorIndicator =
