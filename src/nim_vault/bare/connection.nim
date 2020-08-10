@@ -5,12 +5,14 @@
 ##
 import httpclient
 import json
-import os
+import streams
 import strformat
 import strutils
 
 import nim_vault/errors
-import nim_vault/structs
+import nim_vault/types
+import nim_vault/utils
+import nim_vault/utils/tokens
 
 type VaultConnectionError* = object of VaultError
 type VaultConnection* = ref object of RootObj
@@ -35,10 +37,10 @@ method approle_login*(this: VaultConnection, role_id: string, secret_id: string)
         "secret_id": secret_id
     })
     
-    let res = this.client.post(url=vault_path, body=call_body)
+    let resp = this.client.post(url=vault_path, body=call_body)
 
-    var resp_json = res.body().parseJson()
-    if res.code != Http200:
+    var resp_json = resp.body().parseJson()
+    if resp.code != Http200:
         return(fmt"""Failed to use AppRole to login to {vault_path}: {resp_json["errors"]}""", true)
 
     if "auth" notin resp_json or "client_token" notin resp_json["auth"]:
@@ -51,7 +53,7 @@ method approle_login*(this: VaultConnection, role_id: string, secret_id: string)
 
     return (this.vault_token, false)
 
-method login*(this: VaultConnection): json.JsonNode {.base.} =
+method login*(this: VaultConnection): StrWithError {.base.} =
     var resp: Response
     try:
         resp = this.client.get(this.vault_url)
@@ -61,18 +63,26 @@ method login*(this: VaultConnection): json.JsonNode {.base.} =
     if resp.contentType != "application/json":
         raise newException(VaultConnectionError, "The content type returned from Vault was not JSON!")
 
-    return json.parseJson(resp.bodyStream)
+    let res_json = resp.body.parseJson()
+    let errs = res_json.stringifyVaultErrors
+    return (errs, if errs.isEmpty: false else: true)
 
-
-
-proc newVaultConnection*(vault_url: string, vault_token = os.getEnv("VAULT_TOKEN", ""), api_version = "v1"): VaultConnection =
+proc newVaultConnection*(vault_url: string, vault_token = "", api_version = "v1"): VaultConnection =
     ## Creates a new Vault connection object (does not actually connect, that is done lazily)
     let clean_vault_url = vault_url.strip(leading=false, trailing=true, chars={'/'})
-
     new result
+
+    var tok = vault_token
+    if tok.isEmpty:
+        let foundToken = findVaultToken()
+        if not foundToken[1]:
+            tok = foundToken[0]
+        else:
+            raise newException(VaultTokenError, "Vault token was empty")
+
     result.client = newHttpClient("nim_vault")
-    result.client.headers.add("Authorization", fmt"Bearer {vault_token}")
+    result.vault_token = tok
+    result.client.headers.add("Authorization", fmt"Bearer {result.vault_token}")
     result.client.headers.add("Accept", "application/json")
     result.client.headers.add("Content-Type", "application/json")
     result.vault_url = fmt"{clean_vault_url}/{api_version}"
-    result.vault_token = vault_token

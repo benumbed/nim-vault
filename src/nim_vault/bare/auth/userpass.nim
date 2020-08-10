@@ -8,7 +8,7 @@ import json
 import strformat
 
 import ../connection
-import ../../structs
+import ../../types
 import ../../utils
 
 

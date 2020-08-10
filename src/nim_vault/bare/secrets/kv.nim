@@ -10,7 +10,7 @@ import strformat
 import strutils
 
 import ../connection
-import ../../structs
+import ../../types
 import ../../utils
 
 #-----------------------------------------------------------------------------------------------------------------------

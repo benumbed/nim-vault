@@ -9,7 +9,7 @@ import strformat
 import strutils
 
 import ./errors
-import ./structs
+import ./types
 
 proc list*(client: HttpClient | AsyncHttpClient, url: string,
               httpMethod = HttpGet, body = "", headers: HttpHeaders = nil,
@@ -47,3 +47,33 @@ proc singleLine*(this: string): string =
         toks.add(tok.strip())
 
     result = toks.join(" ")
+
+
+proc isEmpty*(this: string): bool = 
+    ## Returns `true` if a string is empty, `false` otherwise
+    ##
+    if this.len == 0:
+        return true
+    return false
+
+proc stringifyVaultErrors*(errJson: JsonNode): string =
+    if errJson["errors"].len > 0:
+        var errs: string
+        for err in errJson["errors"]:
+            if not errs.isEmpty:
+                errs = fmt"{errs};"
+            errs = fmt"{errs} {err}"
+        return errs
+    return ""
+
+proc hasError*(this: JsonWithErrorIndicator): bool = 
+    ## Determines if a JSON structures has an error attached
+    ## 
+    ##
+    return if this[1]: true else: false
+
+proc hasError*(this: StrWithError): bool = 
+    ## Determines if a JSON structures has an error attached
+    ## 
+    ##
+    return if this[1]: true else: false

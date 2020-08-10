@@ -7,7 +7,7 @@ import httpclient
 import tables
 
 import ../connection
-import ../../structs
+import ../../types
 import ../../utils
 
 type TokenOptions* = object
