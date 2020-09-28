@@ -5,7 +5,6 @@
 ##
 import httpclient
 import json
-import streams
 import strformat
 import strutils
 
@@ -16,73 +15,76 @@ import nim_vault/utils/tokens
 
 type VaultConnectionError* = object of VaultError
 type VaultConnection* = ref object of RootObj
-    vault_url*: string
-    vault_token*: string
-    vault_token_info: JsonNode
+    vaultUrl*: string
+    vaultToken*: string
+    vaultTokenInfo: JsonNode
     client*: HttpClient
 
 
 method api_path*(this: VaultConnection, path_frag: string): string {.base.} = 
     ## Simply returns a fully-formed API url given the provided `path_frag`
     let clean_frag = path_frag.strip(leading=true, trailing=false, chars={'/'})
-    fmt"{this.vault_url}/{clean_frag}"
+    fmt"{this.vaultUrl}/{clean_frag}"
 
-method approle_login*(this: VaultConnection, role_id: string, secret_id: string): StrWithError {.base.} = 
-    ## Will take the provided `role_id` and `secret_id` and use them to log in to Vault and acquire a token, which will
+method approle_login*(this: VaultConnection, roleId: string, secretId: string): StrWithError {.base.} = 
+    ## Will take the provided `roleId` and `secretId` and use them to log in to Vault and acquire a token, which will
     ## then be stored for the current connection.
-    let vault_path = this.api_path("auth/approle/login")
+    let vaultPath = this.api_path("auth/approle/login")
 
-    let call_body = $(%*{
-        "role_id": role_id,
-        "secret_id": secret_id
+    let callBody = $(%*{
+        "role_id": roleId,
+        "secret_id": secretId
     })
     
-    let resp = this.client.post(url=vault_path, body=call_body)
+    let resp = this.client.post(url=vaultPath, body=callBody)
 
-    var resp_json = resp.body().parseJson()
+    var respJson = resp.body().parseJson()
     if resp.code != Http200:
-        return(fmt"""Failed to use AppRole to login to {vault_path}: {resp_json["errors"]}""", true)
+        return(fmt"""Failed to use AppRole to login to {vaultPath}: {respJson["errors"]}""", true)
 
-    if "auth" notin resp_json or "client_token" notin resp_json["auth"]:
+    if "auth" notin respJson or "client_token" notin respJson["auth"]:
         return ("Invalid response from Vault, did not find the expected keys", true)
 
-    let auth_blk = resp_json["auth"]
+    let authBlk = respJson["auth"]
 
-    this.vault_token = auth_blk["client_token"].getStr()
-    this.vault_token_info = auth_blk
+    this.vaultToken = authBlk["client_token"].getStr()
+    this.vaultTokenInfo = authBlk
 
-    return (this.vault_token, false)
+    return (this.vaultToken, false)
 
 method login*(this: VaultConnection): StrWithError {.base.} =
+    ## This doesn't actually run a `login` like you would expect, it just validates the token attached to the 
+    ## VaultConnection object
+    ## 
+    if this.vaultToken.isEmpty:
+        return ("No Vault token attached to connection", true)
+    
     var resp: Response
+    let checkBody = $(%*{
+        "paths": ["sys/capabilities-self"]
+    })
     try:
-        resp = this.client.get(this.vault_url)
+        resp = this.client.post(fmt"{this.vaultUrl}/sys/capabilities-self", body=checkBody)
     except Exception as e:
         raise newException(VaultConnectionError, fmt"Failed to communicate with Vault: {e.msg}")
-        
+
     if resp.contentType != "application/json":
         raise newException(VaultConnectionError, "The content type returned from Vault was not JSON!")
+    elif resp.code != Http200:
+        return (fmt"Unexpected HTTP status code: {resp.code}", true)
 
     let res_json = resp.body.parseJson()
-    let errs = res_json.stringifyVaultErrors
+    let errs = res_json.stringifyVaultErrors()
     return (errs, if errs.isEmpty: false else: true)
 
-proc newVaultConnection*(vault_url: string, vault_token = "", api_version = "v1"): VaultConnection =
+proc newVaultConnection*(vaultUrl: string, vaultToken = "", apiVersion = "v1"): VaultConnection =
     ## Creates a new Vault connection object (does not actually connect, that is done lazily)
-    let clean_vault_url = vault_url.strip(leading=false, trailing=true, chars={'/'})
+    let cleanVaultUrl = vaultUrl.strip(leading=false, trailing=true, chars={'/'})
     new result
 
-    var tok = vault_token
-    if tok.isEmpty:
-        let foundToken = findVaultToken()
-        if not foundToken[1]:
-            tok = foundToken[0]
-        else:
-            raise newException(VaultTokenError, "Vault token was empty")
-
     result.client = newHttpClient("nim_vault")
-    result.vault_token = tok
-    result.client.headers.add("Authorization", fmt"Bearer {result.vault_token}")
+    result.vaultToken = if not vaultToken.isEmpty: vaultToken else: findVaultToken().output
+    result.client.headers.add("Authorization", fmt"Bearer {result.vaultToken}")
     result.client.headers.add("Accept", "application/json")
     result.client.headers.add("Content-Type", "application/json")
-    result.vault_url = fmt"{clean_vault_url}/{api_version}"
+    result.vaultUrl = fmt"{cleanVaultUrl}/{apiVersion}"

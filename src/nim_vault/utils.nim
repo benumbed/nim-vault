@@ -57,7 +57,7 @@ proc isEmpty*(this: string): bool =
     return false
 
 proc stringifyVaultErrors*(errJson: JsonNode): string =
-    if errJson["errors"].len > 0:
+    if "errors" in errJson and errJson["errors"].len > 0:
         var errs: string
         for err in errJson["errors"]:
             if not errs.isEmpty:
