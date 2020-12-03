@@ -13,6 +13,14 @@ import ../../types
 import ../../errors
 
 
+proc pkiReadCaCertificate*(this: VaultConnection, asPem: bool = false, mountpoint: string = "/pki"): 
+                          StrWithErrorIndicator =
+    ## Retrieves the CA certificate for the given pki mountpoint
+    ## https://www.vaultproject.io/api-docs/secret/pki#read-ca-certificate
+    ##
+    return expectHttp200Raw(this.client.get(this.api_path(if asPem: fmt"{mountpoint}/ca/pem" else: fmt"{mountpoint}/ca")))
+    
+
 proc pkiRotateCrls*(this: VaultConnection, mountpoint: string = "/pki"): JsonWithErrorIndicator =
     ## Rotates the CRL of the CA
     ## https://www.vaultproject.io/api-docs/secret/pki#rotate-crls

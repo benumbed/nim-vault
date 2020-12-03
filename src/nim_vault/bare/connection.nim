@@ -26,7 +26,7 @@ method api_path*(this: VaultConnection, path_frag: string): string {.base.} =
     let clean_frag = path_frag.strip(leading=true, trailing=false, chars={'/'})
     fmt"{this.vaultUrl}/{clean_frag}"
 
-method approle_login*(this: VaultConnection, roleId: string, secretId: string): StrWithError {.base.} = 
+method approle_login*(this: VaultConnection, roleId: string, secretId: string): StrWithErrorIndicator {.base.} = 
     ## Will take the provided `roleId` and `secretId` and use them to log in to Vault and acquire a token, which will
     ## then be stored for the current connection.
     let vaultPath = this.api_path("auth/approle/login")
@@ -52,7 +52,7 @@ method approle_login*(this: VaultConnection, roleId: string, secretId: string): 
 
     return (this.vaultToken, false)
 
-method login*(this: VaultConnection): StrWithError {.base.} =
+method login*(this: VaultConnection): StrWithErrorIndicator {.base.} =
     ## This doesn't actually run a `login` like you would expect, it just validates the token attached to the 
     ## VaultConnection object
     ## 

@@ -7,4 +7,4 @@ import json
 
 
 type JsonWithErrorIndicator* = tuple[response: JsonNode, error: bool]
-type StrWithError* = tuple[output: string, error: bool]
+type StrWithErrorIndicator* = tuple[output: string, error: bool]

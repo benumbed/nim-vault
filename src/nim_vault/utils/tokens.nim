@@ -9,7 +9,7 @@ import strformat
 import nim_vault/utils
 import nim_vault/types
 
-proc findVaultToken*(tokenFileName=".vault-token", appName=""): StrWithError =
+proc findVaultToken*(tokenFileName=".vault-token", appName=""): StrWithErrorIndicator =
     ## Searches in standard locations for a vault token, returns it if it is found
     ## 
     ##

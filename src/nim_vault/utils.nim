@@ -23,7 +23,6 @@ proc expectHttp204*(res: Response): JsonWithErrorIndicator =
     
     return (JsonNode(nil), false)
 
-
 proc expectHttp200*(res: Response, isKv2: bool = false, hasSingleData = true, returnAll = false, url: string = ""): JsonWithErrorIndicator =
     let resp_json = res.body().parseJson()
 
@@ -41,6 +40,18 @@ proc expectHttp200*(res: Response, isKv2: bool = false, hasSingleData = true, re
         return (resp_json, false)
     else:
         return ((if isKv2 and not hasSingleData: resp_json["data"]["data"] else: resp_json["data"]), false)
+
+proc expectHttp200Raw*(res: Response, url: string = ""): StrWithErrorIndicator =
+    ## Checks for HTTP 200, but doesn't assume the body is JSON
+    ##
+    if res.code == Http404:
+        var errMsg = if url.isEmptyOrWhitespace: "" else: fmt"({url}) "
+        raise newException(VaultNotFoundError, fmt"Path not found {errMsg}")
+
+    if res.code != Http200:
+        echo fmt"body: {res.body}"
+        return (res.body, true)
+    return (res.body, false)
 
 proc singleLine*(this: string): string =
     ## Takes a multi-line string collapses it
@@ -74,7 +85,7 @@ proc hasError*(this: JsonWithErrorIndicator): bool =
     ##
     return if this[1]: true else: false
 
-proc hasError*(this: StrWithError): bool = 
+proc hasError*(this: StrWithErrorIndicator): bool = 
     ## Determines if a JSON structures has an error attached
     ## 
     ##

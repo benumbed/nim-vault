@@ -25,9 +25,21 @@ let vc = newVaultConnection(VAULT_ADDR)
 ##  if you're using the UI, it may look like the TTL is set to 30 seconds in the form, it is not)
 
 suite "Tests for bare PKI wrapper":
+    test "Can read CA certificate":
+        let pkiRes = vc.pkiReadCaCertificate()
+        check:
+            pkiRes.error != true
+            pkiRes.output.len > 0
+
+        let pkiResPem = vc.pkiReadCaCertificate(asPem = true)
+        check:
+            pkiResPem.error != true
+            pkiResPem.output.len > 0
+            pkiResPem.output.contains("-----BEGIN CERTIFICATE-----")
+            
+
     test "Can rotate CRLs":
         let pkiRes = vc.pkiRotateCrls()
-        
         check:
             pkiRes.error != true
             pkiRes.response.contains("success")
@@ -35,7 +47,6 @@ suite "Tests for bare PKI wrapper":
 
     test "Can issue new TLS certificate and private key":
         let pkiRes = vc.pkiGenerate("nim-vault-tests", "nim-vault.test")
-
         check:
             pkiRes.error != true
             pkiRes.response.contains("certificate")
@@ -47,7 +58,6 @@ suite "Tests for bare PKI wrapper":
 
     test "Can sign provided CSR":
         let pkiRes = vc.pkiSignCertificate("nim-vault-tests", "<CSR TODO>", "nim-vault.test")
-
         check:
             pkiRes.error != true
             pkiRes.response.contains("certificate")
