@@ -24,12 +24,16 @@ proc expectHttp204*(res: Response): JsonWithErrorIndicator =
     return (JsonNode(nil), false)
 
 
-proc expectHttp200*(res: Response, url: string, isKv2: bool = false, hasSingleData = true, returnAll = false): JsonWithErrorIndicator =
+proc expectHttp200*(res: Response, isKv2: bool = false, hasSingleData = true, returnAll = false, url: string = ""): JsonWithErrorIndicator =
+    let resp_json = res.body().parseJson()
+
     ## Collects all the common HTTP 200 code among the kv methods
     if res.code == Http404:
-        raise newException(VaultNotFoundError, fmt"The path '{url}' was not found")
-
-    let resp_json = res.body().parseJson()
+        var errMsg = if url.isEmptyOrWhitespace: "" else: fmt"({url}) "
+        var serverError = ""
+        if "errors" in resp_json and resp_json["errors"].elems.len > 0:
+            serverError = resp_json["errors"].getStr()
+        raise newException(VaultNotFoundError, fmt"Path not found {errMsg} {serverError}")
 
     if res.code != Http200 or not ("data" in resp_json):
         return (resp_json, true)
@@ -37,7 +41,6 @@ proc expectHttp200*(res: Response, url: string, isKv2: bool = false, hasSingleDa
         return (resp_json, false)
     else:
         return ((if isKv2 and not hasSingleData: resp_json["data"]["data"] else: resp_json["data"]), false)
-
 
 proc singleLine*(this: string): string =
     ## Takes a multi-line string collapses it
@@ -47,7 +50,6 @@ proc singleLine*(this: string): string =
         toks.add(tok.strip())
 
     result = toks.join(" ")
-
 
 proc isEmpty*(this: string): bool = 
     ## Returns `true` if a string is empty, `false` otherwise

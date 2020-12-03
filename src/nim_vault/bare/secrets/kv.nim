@@ -48,7 +48,7 @@ proc kvGetConfig*(this: VaultConnection, mountpoint="/secret"): JsonWithErrorInd
     let url = this.api_path(fmt"{mountpoint}/config")
     let res = this.client.get(url = url)
 
-    return expectHttp200(res, url, isKv2=false)
+    return expectHttp200(res, url=url, isKv2=false)
 
 
 
@@ -58,7 +58,7 @@ proc kvRead*(this: VaultConnection, mountpoint="/secret", kvPath="/", isKv2=true
     let url = this.api_path(fmt"{kvPathGenerator(mountpoint, kvPath, isKv2)}?version={version}")
     let res = this.client.get(url = url)
 
-    return expectHttp200(res, url, isKv2, hasSingleData = false)
+    return expectHttp200(res, url=url, isKv2=isKv2, hasSingleData = false)
 
 
 proc kvWrite*(this: VaultConnection, data: JsonNode, mountpoint="/secret", kvPath="/", isKv2=true): JsonWithErrorIndicator =
@@ -67,7 +67,7 @@ proc kvWrite*(this: VaultConnection, data: JsonNode, mountpoint="/secret", kvPat
     let url = this.api_path(kvPathGenerator(mountpoint, kvPath, isKv2))
     let res = this.client.post(url = url, body = $(%*{"data": data}))
 
-    return expectHttp200(res, url, isKv2, hasSingleData=true)
+    return expectHttp200(res, url=url, isKv2=isKv2, hasSingleData=true)
 
 
 proc kvDelete*(this: VaultConnection, mountpoint="/secret", kvPath="/", isKv2=true): JsonWithErrorIndicator =
@@ -118,7 +118,7 @@ proc kvList*(this: VaultConnection, mountpoint="/secret", kvPath="/", isKv2=true
     # NOTE: Nim's httpclient doesn't directly support 'LIST' so we use the raw `request` proc here
     let res = this.client.request(url = url, httpMethod = "LIST")
 
-    return expectHttp200(res, url, isKv2, hasSingleData=true)
+    return expectHttp200(res, url=url, isKv2=isKv2, hasSingleData=true)
 
 
 proc kv2ReadMetadata*(this: VaultConnection, mountpoint="/secret", kvPath="/"): JsonWithErrorIndicator =
@@ -127,7 +127,7 @@ proc kv2ReadMetadata*(this: VaultConnection, mountpoint="/secret", kvPath="/"): 
     let url = this.api_path(fmt("{mountpoint}/metadata/{path}"))
     let res = this.client.get(url = url)
 
-    return expectHttp200(res, url, isKv2=true, hasSingleData=true)
+    return expectHttp200(res, url=url, isKv2=true, hasSingleData=true)
 
 
 proc kv2UpdateMetadata*(this: VaultConnection, mountpoint="/secret", kvPath="/", maxVersions=0, casRequired=false, 
