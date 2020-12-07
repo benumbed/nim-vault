@@ -48,8 +48,10 @@ proc expectHttp200Raw*(res: Response, url: string = ""): StrWithErrorIndicator =
         var errMsg = if url.isEmptyOrWhitespace: "" else: fmt"({url}) "
         raise newException(VaultNotFoundError, fmt"Path not found {errMsg}")
 
+    # echo res.code
+
+    # echo fmt"body: {res.body}"
     if res.code != Http200:
-        echo fmt"body: {res.body}"
         return (res.body, true)
     return (res.body, false)
 

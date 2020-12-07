@@ -19,7 +19,31 @@ proc pkiReadCaCertificate*(this: VaultConnection, asPem: bool = false, mountpoin
     ## https://www.vaultproject.io/api-docs/secret/pki#read-ca-certificate
     ##
     return expectHttp200Raw(this.client.get(this.api_path(if asPem: fmt"{mountpoint}/ca/pem" else: fmt"{mountpoint}/ca")))
-    
+
+proc pkiReadCaCertificateChain*(this: VaultConnection, mountpoint: string = "/pki"): StrWithErrorIndicator =
+    ## Retrieves the CA certificate chain in PEM format
+    ## https://www.vaultproject.io/api-docs/secret/pki#read-ca-certificate-chain
+    ##
+    let resp = this.client.get(this.api_path(fmt"{mountpoint}/ca_chain"))
+
+    # Vault will return an HTTP 204 if there's no chain loaded
+    if resp.code == Http204:
+        return ("", false)
+
+    return expectHttp200Raw(resp)
+
+proc pkiReadCertificate*(this: VaultConnection, serial: string, mountpoint: string = "/pki"): StrWithErrorIndicator =
+    ## Retrieves a specific certificate from Vault via its serial (PEM format)
+    ## https://www.vaultproject.io/api-docs/secret/pki#read-certificate
+    ##
+    return expectHttp200Raw(this.client.get(this.api_path(fmt"{mountpoint}/cert/{serial}")))
+
+
+proc pkiListCertificates*(this: VaultConnection, mountpoint: string = "/pki"): JsonWithErrorIndicator =
+    ## Lists all certificates' serials in Vault
+    ## https://www.vaultproject.io/api-docs/secret/pki#list-certificates
+    ##
+    return expectHttp200(this.client.list(this.api_path(fmt"{mountpoint}/certs")))
 
 proc pkiRotateCrls*(this: VaultConnection, mountpoint: string = "/pki"): JsonWithErrorIndicator =
     ## Rotates the CRL of the CA

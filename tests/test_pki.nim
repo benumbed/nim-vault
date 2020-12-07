@@ -36,7 +36,28 @@ suite "Tests for bare PKI wrapper":
             pkiResPem.error != true
             pkiResPem.output.len > 0
             pkiResPem.output.contains("-----BEGIN CERTIFICATE-----")
-            
+
+    # FIME: Inject a cert chain, otherwise this just returns 204            
+    test "Can read CA certificate chain":
+        let pkiRes = vc.pkiReadCaCertificateChain()
+        check:
+            pkiRes.error != true
+            pkiRes.output.len == 0
+
+    test "Can read specific certificate":
+        let certRes = vc.pkiGenerate("nim-vault-tests", "nim-vault.test")
+        let pkiRes = vc.pkiReadCertificate(certRes.response["serial_number"].getStr)
+        check:
+            pkiRes.error != true
+            pkiRes.output.len > 0
+            pkiRes.output.contains("-----BEGIN CERTIFICATE-----")
+
+    test "Can list certificate serials":
+        let pkiRes = vc.pkiListCertificates()
+        check:
+            pkiRes.error != true
+            pkiRes.response.contains("keys")
+            pkiRes.response["keys"].getElems.len > 0
 
     test "Can rotate CRLs":
         let pkiRes = vc.pkiRotateCrls()
