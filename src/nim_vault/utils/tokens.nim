@@ -25,7 +25,9 @@ proc findVaultToken*(tokenFileName=".vault-token", appName=""): StrWithErrorIndi
     else:
         tokenFile = fmt"{getHomeDir()}/{tokenFileName}"
     
-    if existsFile(tokenFile):
+    if fileExists(tokenFile):
         return (open(tokenFile).readAll, false)
 
     return ("", false)
+
+#### TODO: Add high-level support for wrapped token auth (cubbyhole)

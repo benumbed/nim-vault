@@ -41,6 +41,24 @@ proc expectHttp200*(res: Response, isKv2: bool = false, hasSingleData = true, re
     else:
         return ((if isKv2 and not hasSingleData: resp_json["data"]["data"] else: resp_json["data"]), false)
 
+proc expectHttp200_NoDataBlock*(res: Response, url: string = ""): JsonWithErrorIndicator =
+    ## Checks for HTTP 200, but does not assume there's a 'data' key
+    ##
+    let resp_json = res.body().parseJson()
+
+    ## Collects all the common HTTP 200 code among the kv methods
+    if res.code == Http404:
+        var errMsg = if url.isEmptyOrWhitespace: "" else: fmt"({url}) "
+        var serverError = ""
+        if "errors" in resp_json and resp_json["errors"].elems.len > 0:
+            serverError = resp_json["errors"].getStr()
+        raise newException(VaultNotFoundError, fmt"Path not found {errMsg} {serverError}")
+
+    if res.code != Http200:
+        return (resp_json, true)
+    else:
+        return (resp_json, false)
+
 proc expectHttp200Raw*(res: Response, url: string = ""): StrWithErrorIndicator =
     ## Checks for HTTP 200, but doesn't assume the body is JSON
     ##
@@ -48,9 +66,6 @@ proc expectHttp200Raw*(res: Response, url: string = ""): StrWithErrorIndicator =
         var errMsg = if url.isEmptyOrWhitespace: "" else: fmt"({url}) "
         raise newException(VaultNotFoundError, fmt"Path not found {errMsg}")
 
-    # echo res.code
-
-    # echo fmt"body: {res.body}"
     if res.code != Http200:
         return (res.body, true)
     return (res.body, false)
