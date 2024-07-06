@@ -11,8 +11,9 @@ import tables
 import ../connection
 import ../../structs
 import ../../utils
+import ../../types
 
-proc policiesAclList*(vc: VaultConnection): JsonWithErrorIndicator = 
+proc policiesAclList*(vc: VaultConnection): JsonWithErrorIndicator =
     ## Wraps the ACL policy listing endpoint
     ## https://www.vaultproject.io/api-docs/system/policies/#list-acl-policies
     let url = vc.api_path("/sys/policies/acl")

@@ -7,9 +7,9 @@ import httpclient
 import json
 import strformat
 
-import ../connection
-import ../../types
-import ../../utils
+import nim_vault/bare/connection
+import nim_vault/types
+import nim_vault/utils
 
 
 proc userCreateUpdate*(vc: VaultConnection, 

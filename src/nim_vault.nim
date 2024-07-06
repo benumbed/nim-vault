@@ -11,6 +11,8 @@ import nim_vault/errors
 import nim_vault/bare/connection
 import nim_vault/utils/tokens
 
+export VaultConnection
+
 proc newConnection*(vault_url: string, vault_token = ""): VaultConnection =
     ## Creates a new Vault connection object (does not actually connect, that is done lazily)
     new result
